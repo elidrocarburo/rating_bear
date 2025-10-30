@@ -11,41 +11,24 @@ class RatingScreen extends StatefulWidget {
 
 class _RatingScreenState extends State<RatingScreen> {
   StateMachineController? controller;
+  Artboard? _artboard; // Guardar referencia al artboard
+
   SMITrigger? trigSuccess;
   SMITrigger? trigFail;
-  
-  // Variable para controlar la puntuación actual
-  double _currentRating = 0;
-  
-  // Clave única para el widget RiveAnimation
-  UniqueKey _riveKey = UniqueKey();
 
-  // Método para resetear la animación
+  // Método para reiniciar la animación
   void _resetAnimation() {
-    setState(() {
-      // Cambiar la clave fuerza la recreación del widget Rive
-      _riveKey = UniqueKey();
-    });
-  }
-
-  // Método para manejar el cambio de rating
-  void _onRatingUpdate(double rating) {
-    // Primero reiniciamos la animación
-    _resetAnimation();
-    
-    // Luego actualizamos el rating y disparamos la animación correspondiente
-    setState(() {
-      _currentRating = rating;
-    });
-    
-    // Disparamos la animación después de un pequeño delay para que se reinicie primero
-    Future.delayed(Duration(milliseconds: 100), () {
-      if (rating == 1 || rating == 2) {
-        trigFail?.fire();
-      } else if (rating >= 3) {
-        trigSuccess?.fire();
+    if (_artboard != null) {
+      // Reiniciar la línea de tiempo del artboard
+      _artboard!.advance(0); // Avanza a tiempo 0
+      
+      // Opcional: Si necesitas reiniciar también el controlador de estado
+      // Puedes remover y volver a agregar el controlador
+      if (controller != null) {
+        _artboard!.removeController(controller!);
+        _artboard!.addController(controller!);
       }
-    });
+    }
   }
 
   @override
@@ -61,10 +44,10 @@ class _RatingScreenState extends State<RatingScreen> {
                 width: size.width,
                 height: 250,
                 child: RiveAnimation.asset(
-                  key: _riveKey, // Usar la clave única
                   'assets/animated_login_character.riv',
                   stateMachines: ["Login Machine"],
                   onInit: (artboard) {
+                    _artboard = artboard; // Guardar referencia al artboard
                     controller = StateMachineController.fromArtboard(
                         artboard, "Login Machine");
                     if (controller == null) return;
@@ -107,15 +90,26 @@ class _RatingScreenState extends State<RatingScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       RatingBar.builder(
-                        initialRating: _currentRating,
+                        initialRating: 0, // Cambiado a 0 para mejor UX
                         minRating: 1,
                         direction: Axis.horizontal,
                         allowHalfRating: false,
                         itemCount: 5,
                         itemPadding: EdgeInsets.symmetric(horizontal: 4),
                         itemBuilder: (context,_)=>Icon(Icons.star, color: Colors.amber,), 
-                        onRatingUpdate: _onRatingUpdate, // Usar el método mejorado
-                      )
+                        onRatingUpdate: (rating) {
+                          // Reiniciar animación antes de mostrar la nueva
+                          _resetAnimation();
+                          
+                          // Pequeño delay para que se vea el reinicio
+                          Future.delayed(Duration(milliseconds: 50), () {
+                            if (rating <= 2){
+                              trigFail?.fire();
+                            } else {
+                              trigSuccess?.fire();
+                            }
+                          });
+                        })
                     ],
                   ),
                 ],
