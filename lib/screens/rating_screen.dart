@@ -10,10 +10,43 @@ class RatingScreen extends StatefulWidget {
 }
 
 class _RatingScreenState extends State<RatingScreen> {
-  StateMachineController ? controller;
-
+  StateMachineController? controller;
   SMITrigger? trigSuccess;
   SMITrigger? trigFail;
+  
+  // Variable para controlar la puntuación actual
+  double _currentRating = 0;
+  
+  // Clave única para el widget RiveAnimation
+  UniqueKey _riveKey = UniqueKey();
+
+  // Método para resetear la animación
+  void _resetAnimation() {
+    setState(() {
+      // Cambiar la clave fuerza la recreación del widget Rive
+      _riveKey = UniqueKey();
+    });
+  }
+
+  // Método para manejar el cambio de rating
+  void _onRatingUpdate(double rating) {
+    // Primero reiniciamos la animación
+    _resetAnimation();
+    
+    // Luego actualizamos el rating y disparamos la animación correspondiente
+    setState(() {
+      _currentRating = rating;
+    });
+    
+    // Disparamos la animación después de un pequeño delay para que se reinicie primero
+    Future.delayed(Duration(milliseconds: 100), () {
+      if (rating == 1 || rating == 2) {
+        trigFail?.fire();
+      } else if (rating >= 3) {
+        trigSuccess?.fire();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,16 +61,18 @@ class _RatingScreenState extends State<RatingScreen> {
                 width: size.width,
                 height: 250,
                 child: RiveAnimation.asset(
+                  key: _riveKey, // Usar la clave única
                   'assets/animated_login_character.riv',
                   stateMachines: ["Login Machine"],
-                  onInit: (artboard){
-                    controller = StateMachineController.fromArtboard(artboard, "Login Machine");
-                    if (controller == null) return ; 
+                  onInit: (artboard) {
+                    controller = StateMachineController.fromArtboard(
+                        artboard, "Login Machine");
+                    if (controller == null) return;
                     artboard.addController(controller!);
                     trigSuccess = controller!.findSMI('trigSuccess');
                     trigFail = controller!.findSMI('trigFail');
-                   }
-                  ),
+                  },
+                ),
               ),
               const SizedBox(height: 10),
 
@@ -72,35 +107,15 @@ class _RatingScreenState extends State<RatingScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       RatingBar.builder(
-                        initialRating: 3,
+                        initialRating: _currentRating,
                         minRating: 1,
                         direction: Axis.horizontal,
                         allowHalfRating: false,
                         itemCount: 5,
                         itemPadding: EdgeInsets.symmetric(horizontal: 4),
                         itemBuilder: (context,_)=>Icon(Icons.star, color: Colors.amber,), 
-                        onRatingUpdate: (rating) {
-                          if (rating == 1){
-                            trigFail?.fire();
-                          }
-
-                          if (rating == 2){
-                            trigFail?.fire();
-                          }
-                          
-                          if (rating == 3){
-                            trigSuccess?.fire();
-                          }
-
-                          if (rating == 4){
-                            trigSuccess?.fire();
-                          }
-
-                          if (rating == 5){
-                            trigSuccess?.fire();
-                          }
-                          
-                        })
+                        onRatingUpdate: _onRatingUpdate, // Usar el método mejorado
+                      )
                     ],
                   ),
                 ],
@@ -122,8 +137,8 @@ class _RatingScreenState extends State<RatingScreen> {
                     fontWeight: FontWeight.bold,
                     fontSize: 20
                   ),
-                  ),
                 ),
+              ),
               
               const SizedBox(height: 20),
 
@@ -147,7 +162,7 @@ class _RatingScreenState extends State<RatingScreen> {
               )
             ],
           ),
-          ),
+        ),
       )
     );
   }
